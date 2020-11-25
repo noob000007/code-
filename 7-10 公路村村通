@@ -1,0 +1,303 @@
+7-10 公路村村通 (30分)
+现有村落间道路的统计数据表中，列出了有可能建设成标准公路的若干条道路的成本，求使每个村落都有公路连通所需要的最低成本。
+
+输入格式:
+输入数据包括城镇数目正整数N（≤1000）和候选道路数目M（≤3N）；随后的M行对应M条道路，每行给出3个正整数，分别是该条道路直接连通的两个城镇的编号以及该道路改建的预算成本。为简单起见，城镇从1到N编号。
+
+输出格式:
+输出村村通需要的最低成本。如果输入数据不足以保证畅通，则输出−1，表示需要建设更多公路。
+
+输入样例:
+6 15
+1 2 5
+1 3 3
+1 4 7
+1 5 4
+1 6 2
+2 3 4
+2 4 6
+2 5 2
+2 6 6
+3 4 6
+3 5 1
+3 6 1
+4 5 10
+4 6 8
+5 6 3
+输出样例:
+12
+
+
+
+——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+问题提取：  建立最小生成树 
+1.kruskal 
+2.prime
+
+证明是为什么是最小的生成树，如果采用这两种方法，可以反正或其他一些小的技巧 ，但却是有一种更有趣的证明方法，可以自己想想，想想如何构建问题
+
+
+1.kruskal算法
+
+scanf所以的边，存入每条边所相连接的边
+用一个集合，最初取值都为-1 ；表示没有连通集合，每个点v对应array【v】
+
+先把所有边从小到达排序，
+
+依次取边，标记点，如第一次去v1 ，v2 ； 将array【v1】=v2 ， 是v1的根节点为v2，v2=-1+v1=-1+ -1 = -2 ，表示这个连通集有两个点
+同理，对边都采用这个方法，并保证每个集合只有一个根节点，即一个连通集合所有带点都指向一个根节点：array【vx1】=array【vx2】=...=vx ,
+即根节点的下标，对根基节点array【vx】为连通集合内点的个数取负
+
+两个连通集合连通成一个更大的连通集合时，小集合并入大集合
+
+
+边取完，看是不是只有一个连通集合，是不是有所有点，如果是，把取的边的和作为输出
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+2.prime 大差不差，从一个点出发，每次取最小的边来连通另外的点，看最后是不是在所有边的取的情况下取得了所有点
+
+
+
+krusakl：
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MaxVertexNum 1000
+#define INF 65535
+typedef int Vertex;
+typedef int WeightType;
+
+typedef struct ENode *PtrToENode;
+struct ENode {
+    Vertex V1, V2;
+    WeightType weight;
+};
+typedef PtrToENode Edge;
+/*-------------------- 顶点并查集定义 --------------------*/
+typedef Vertex SetName;     /* 默认用根结点的下标作为集合名称 */
+typedef Vertex SetType[MaxVertexNum]; /* 假设集合元素下标从0开始 */
+
+void InitializeVSet( SetType S, int N )
+{ /* 初始化并查集 */
+    Vertex X;
+
+    for ( X=0; X<N; X++ ) S[X] = -1;
+}
+
+void Union( SetType S, SetName Root1, SetName Root2 )
+{ /* 这里默认Root1和Root2是不同集合的根结点 */
+    /* 保证小集合并入大集合 */
+    if ( S[Root2] < S[Root1] ) { /* 如果集合2比较大 */
+        S[Root2] += S[Root1];     /* 集合1并入集合2  */
+        S[Root1] = Root2;
+    }
+    else {                         /* 如果集合1比较大 */
+        S[Root1] += S[Root2];     /* 集合2并入集合1  */
+        S[Root2] = Root1;
+    }
+}
+
+SetName Find( SetType S, Vertex X )
+{ /* 默认集合元素全部初始化为-1 */
+    if ( S[X] < 0 ) /* 找到集合的根 */
+        return X;
+    else
+        return S[X] = Find( S, S[X] ); /* 路径压缩 */
+}
+
+int CheckCycle( SetType VSet, Vertex V1, Vertex V2 )
+{ /* 检查连接V1和V2的边是否在现有的最小生成树子集中构成回路 */
+    Vertex Root1, Root2;
+
+    Root1 = Find( VSet, V1 ); /* 得到V1所属的连通集名称 */
+    Root2 = Find( VSet, V2 ); /* 得到V2所属的连通集名称 */
+
+    if( Root1==Root2 ) /* 若V1和V2已经连通，则该边不能要 */
+        return 0;
+    else { /* 否则该边可以被收集，同时将V1和V2并入同一连通集 */
+        Union( VSet, Root1, Root2 );
+        return 1;
+    }
+}
+/*-------------------- 并查集定义结束 --------------------*/
+int vertexNum, edgeNum;
+struct ENode edges[MaxVertexNum * 3];
+
+int comp(const void *a, const void *b)
+{
+    return (*(Edge)a).weight - (*(Edge)b).weight;
+}
+
+void initEdges();
+int Kruskal();
+
+int main()
+{
+    printf("%d", Kruskal());
+
+    return 0;
+}
+
+void initEdges()
+{
+    int i;
+    scanf("%d %d", &vertexNum, &edgeNum);
+    for (i = 0; i < edgeNum; ++i) {
+        scanf("%d %d %d", &(edges[i].V1), &(edges[i].V2), &(edges[i].weight));
+        --edges[i].V1;  --edges[i].V2;
+    }
+
+    qsort(edges, edgeNum, sizeof(struct ENode), comp);
+}
+
+int Kruskal()
+{
+    SetType VSet;
+    struct ENode nextEdge;
+    int ECount, i; WeightType totalweight;
+
+    initEdges();
+    InitializeVSet(VSet, vertexNum);
+
+    ECount = 0; totalweight = 0; i = 0;
+    while (ECount < vertexNum - 1) {
+        if (i < edgeNum)
+            nextEdge = edges[i++];
+        else
+            break;
+        if (CheckCycle(VSet, nextEdge.V1, nextEdge.V2)) {
+            totalweight += nextEdge.weight;
+            ++ECount;
+        }
+    }
+    if (ECount < vertexNum - 1)
+        totalweight = -1;
+
+    return totalweight;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+prime ： 
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MaxVertexNum 1000
+#define INF 65535
+int vertexNum;
+int graph[MaxVertexNum][MaxVertexNum];
+int dist[MaxVertexNum];
+
+void buildGraph();
+void initDist();
+int findMinDist();
+int prim();
+
+int main()
+{
+    buildGraph();
+    printf("%d", prim());
+
+    return 0;
+}
+
+void buildGraph()
+{
+    int edgeNum, i, end1, end2, weight;
+
+    scanf("%d %d", &vertexNum, &edgeNum);
+    for (i = 0; i < edgeNum; ++i) {
+        scanf("%d %d %d", &end1, &end2, &weight);
+        graph[end1 - 1][end2 - 1] = weight;
+        graph[end2 - 1][end1 - 1] = weight;
+    }
+}
+
+void initDist()
+{
+    int i;
+    for (i = 0; i < vertexNum; ++i) {
+        dist[i] = INF;
+    }
+}
+
+int findMinDist()
+{
+    int minV, i, minDist = INF;
+
+    for (i = 0;i < vertexNum; ++i) {
+        if (dist[i] != 0 && dist[i] < minDist) {
+            minDist = dist[i];
+            minV = i;
+        }
+    }
+    if (minDist < INF)
+        return minV;
+    else return -1;
+}
+
+int prim()
+{
+    int i, totalWeight, vCount, v;
+
+    initDist();
+    for (i = 0; i < vertexNum; ++i) {
+        if (graph[0][i])
+            dist[i] = graph[0][i];
+    }
+
+    totalWeight = 0; vCount = 0;
+
+    dist[0] = 0;
+    ++vCount;
+
+    while (1) {
+        v = findMinDist();
+        if (v == -1)
+            break;
+
+        totalWeight += dist[v];
+        dist[v] = 0;
+        ++vCount;
+
+        for (i = 0; i < vertexNum; ++i)
+        if (dist[i] != 0 && graph[v][i] && graph[v][i] < dist[i]) {
+            dist[i] = graph[v][i];
+        }
+    }
+    if (vCount < vertexNum)
+        totalWeight = -1;
+    return totalWeight;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
