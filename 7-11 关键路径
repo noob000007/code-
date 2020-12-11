@@ -1,0 +1,296 @@
+7-11 关键活动 (30分)
+假定一个工程项目由一组子任务构成，子任务之间有的可以并行执行，有的必须在完成了其它一些子任务后才能执行。“任务调度”包括一组子任务、以及每个子任务可以执行所依赖的子任务集。
+
+比如完成一个专业的所有课程学习和毕业设计可以看成一个本科生要完成的一项工程，各门课程可以看成是子任务。有些课程可以同时开设，比如英语和C程序设计，它们没有必须先修哪门的约束；有些课程则不可以同时开设，因为它们有先后的依赖关系，比如C程序设计和数据结构两门课，必须先学习前者。
+
+但是需要注意的是，对一组子任务，并不是任意的任务调度都是一个可行的方案。比如方案中存在“子任务A依赖于子任务B，子任务B依赖于子任务C，子任务C又依赖于子任务A”，那么这三个任务哪个都不能先执行，这就是一个不可行的方案。
+
+任务调度问题中，如果还给出了完成每个子任务需要的时间，则我们可以算出完成整个工程需要的最短时间。在这些子任务中，有些任务即使推迟几天完成，也不会影响全局的工期；但是有些任务必须准时完成，否则整个项目的工期就要因此延误，这种任务就叫“关键活动”。
+
+请编写程序判定一个给定的工程项目的任务调度是否可行；如果该调度方案可行，则计算完成整个工程项目需要的最短时间，并输出所有的关键活动。
+
+输入格式:
+输入第1行给出两个正整数N(≤100)和M，其中N是任务交接点（即衔接相互依赖的两个子任务的节点，例如：若任务2要在任务1完成后才开始，则两任务之间必有一个交接点）的数量。交接点按1N编号，M是子任务的数量，依次编号为1M。随后M行，每行给出了3个正整数，分别是该任务开始和完成涉及的交接点编号以及该任务所需的时间，整数间用空格分隔。
+
+输出格式:
+如果任务调度不可行，则输出0；否则第1行输出完成整个工程项目需要的时间，第2行开始输出所有关键活动，每个关键活动占一行，按格式“V->W”输出，其中V和W为该任务开始和完成涉及的交接点编号。关键活动输出的顺序规则是：任务开始的交接点编号小者优先，起点编号相同时，与输入时任务的顺序相反。
+
+输入样例:
+7 8
+1 2 4
+1 3 3
+2 4 5
+3 4 3
+4 5 1
+4 6 6
+5 7 5
+6 7 2
+输出样例:
+17
+1->2
+2->4
+4->6
+6->7
+
+
+
+——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————-
+ 典型ActiveOnEdge网络 
+ 难点在于节点的入度出度 造成建立图的难度加大 
+ 
+ 
+ 1. 可以利用结构体 ， 对每一个节点，int early，int last ，edge* list， 
+ 一个记录最早到达时间，一个记录最迟到达这个点，一个动态内存生成了邻接表来记录从这个点出发到其他节点的 出发点 到达点 和时间花费
+ 总的这样一个节点Enode ， 
+ 生成一个list = Enode[n] 
+ 
+2.
+1 2 4
+1 3 3
+2 4 5
+3 4 3
+4 5 1
+4 6 6
+5 7 5
+6 7 2
+
+根据出发节点 可以分别记录到list的每一个Enode中去 
+可以在顺序读入的时候入1 2 4这样的边是 对每一个enode节点的last进行更新-----当有多条指向同一个节点是，如果在他early的基础上加上边的时间花费，
+中取最大作为最终的early，这就是完成任务最早需要的时间
+ 
+ 
+逆序list，从最后一个节点出发，利用存储的边上时间的花费，和early值，反过来对每个节点的last更新 
+例如第7个节点是最后一个节点那么他的lsat=early
+接着第6个节点，用它存储的边指向的下一节点的early和time对lats更新，取其中的最小值为last 最迟开工时间 
+当然反向时 我们损失了信息那些边指向到这个节点所以我们需要，在原来结构体enode的基础上记录这个点可以来自上一个的哪些点，在此基础上更新
+
+
+
+最终early和last相同的就是关键路径 ， 其他路径上的机动时间在这基础上也可以求
+
+-------------------------
+可以直接生成多维数组来做 （ 会更方便代码编写
+
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+参考代码：
+https://github.com/Xyihang/PTA-mooc/blob/master/08-%E5%9B%BE9%20%E5%85%B3%E9%94%AE%E6%B4%BB%E5%8A%A8.c
+
+
+
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MaxVertexNum 100
+#define INFINITY 65535
+/*-------------------- 图的邻接表定义 --------------------*/
+typedef int Vertex;
+typedef int WeightType;
+typedef struct ENode *PtrToENode;
+struct ENode {
+    Vertex V1, V2;
+    WeightType time;
+    PtrToENode NextPointTo;
+    PtrToENode NextBePointTo;
+};
+typedef PtrToENode Edge;
+
+typedef struct Vnode {
+    WeightType earliest, latest;    // 每个结点最早和最晚完成时间
+    PtrToENode FirstPointToEdge; // 该结点发出的边链表
+    PtrToENode FirstBePointToEdge;   // 指向该结点的边链表
+} AdjList[MaxVertexNum];
+
+typedef struct GNode *PtrToGNode;
+struct GNode {
+    int Nv;
+    int Ne;
+    AdjList G;
+};
+typedef PtrToGNode LGraph;
+
+LGraph CreateGraph( int VertexNum )
+{
+    Vertex V;
+    LGraph Graph;
+
+    Graph = (LGraph)malloc(sizeof(struct GNode));
+    Graph->Nv = VertexNum;
+    Graph->Ne = 0;
+
+    for (V = 0; V < Graph->Nv; ++V) {
+        Graph->G[V].earliest = 0;
+        Graph->G[V].latest = INFINITY;
+        Graph->G[V].FirstPointToEdge = NULL;
+        Graph->G[V].FirstBePointToEdge = NULL;
+    }
+
+    return Graph;
+}
+
+void DestoryGraph( LGraph Graph )
+{
+    Vertex V;
+    PtrToENode Node;
+    for (V = 0; V < Graph->Nv; ++V) {
+        while (Graph->G[V].FirstPointToEdge) {
+            Node = Graph->G[V].FirstPointToEdge;
+            Graph->G[V].FirstPointToEdge = Node->NextPointTo;
+            free(Node);
+        }
+    }
+    free(Graph);
+}
+
+void InsertEdge(LGraph Graph, Edge E)
+{
+    E->NextPointTo = Graph->G[E->V1].FirstPointToEdge;
+    Graph->G[E->V1].FirstPointToEdge = E;
+    E->NextBePointTo = Graph->G[E->V2].FirstBePointToEdge;
+    Graph->G[E->V2].FirstBePointToEdge = E;
+}
+/*-------------------- 邻接表定义结束 --------------------*/
+int container[MaxVertexNum];
+int inDegree[MaxVertexNum];
+
+LGraph buildGraph();
+void solve(LGraph graph);
+int forward(LGraph graph);  // 正向遍历
+void backward(LGraph graph, WeightType finalTime);  // 反向遍历
+void printPath(LGraph graph);   // 打印关键路径
+
+int main()
+{
+    LGraph graph;
+    graph = buildGraph();
+    solve(graph);
+    DestoryGraph(graph);
+
+    return 0;
+}
+
+LGraph buildGraph()
+{
+    LGraph graph; Edge E;
+    int vertexNum, i;
+
+    scanf("%d", &vertexNum);
+    graph = CreateGraph(vertexNum);
+    scanf("%d", &(graph->Ne));
+    if (graph->Ne != 0) {
+        for (i = 0; i < graph->Ne; ++i) {
+            E = (Edge)malloc(sizeof(struct ENode));
+            scanf("%d %d %d", &E->V1, &E->V2, &E->time);
+            --E->V1; --E->V2;   // 注意输入点的编号与存储索引差1
+            InsertEdge(graph, E);
+            ++inDegree[E->V2];
+        }
+    }
+    return graph;
+}
+
+void solve(LGraph graph)
+{
+    WeightType ans;
+
+    ans = forward(graph);
+    if (ans == -1) printf("0");
+    else {
+        printf("%d\n", ans);
+        backward(graph, ans);
+        printPath(graph);
+    }
+}
+
+int forward(LGraph graph)
+{
+    Vertex v;
+    WeightType finalTime;
+    int front, rear, cnt;
+    Edge edge;
+
+    front = rear = -1;  // 队列的头尾
+    for (v = 0; v < graph->Nv; ++v) {
+        if (!inDegree[v]) {
+            container[++rear] = v;
+            graph->G[v].earliest = 0;  // 初始化起始结点的earliest
+        }
+    }
+    cnt = 0; finalTime = -1;
+    while (front != rear) {
+        v = container[++front];
+        ++cnt;
+        for (edge = graph->G[v].FirstPointToEdge; edge; edge = edge->NextPointTo) {
+            if (graph->G[v].earliest + edge->time > graph->G[edge->V2].earliest)
+                graph->G[edge->V2].earliest = graph->G[v].earliest + edge->time;
+            if (--inDegree[edge->V2] == 0)
+                container[++rear] = edge->V2;
+            if (graph->G[edge->V2].earliest > finalTime)    // 最大的earliest即为最终结果
+                finalTime = graph->G[edge->V2].earliest;
+        }
+    }
+    if (cnt != graph->Nv)
+        return -1;
+    return finalTime;
+}
+
+void backward(LGraph graph, WeightType finalTime)
+{
+    Vertex v;
+    int i;
+    Edge edge;
+
+    for (i = graph->Nv; i > 0;) {
+        v = container[--i];
+        // 将网络最后出度为0的结点的latest值置为earliest值并且该结点earliest必须等于finalTime
+        if (!graph->G[v].FirstPointToEdge && graph->G[v].earliest == finalTime)
+            graph->G[v].latest = graph->G[v].earliest;
+        for (edge = graph->G[v].FirstBePointToEdge; edge; edge = edge->NextBePointTo) {
+            if (graph->G[v].latest - edge->time < graph->G[edge->V1].latest)
+                graph->G[edge->V1].latest = graph->G[v].latest - edge->time;
+        }
+    }
+}
+
+void printPath(LGraph graph)
+{
+    Vertex v;
+    Edge edge;
+
+    for (v = 0; v < graph->Nv; ++v) {
+        for (edge = graph->G[v].FirstPointToEdge; edge; edge = edge->NextPointTo) {
+            if (graph->G[edge->V2].latest - graph->G[v].earliest == edge->time)
+                printf("%d->%d\n", (v + 1), (edge->V2 + 1));
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
